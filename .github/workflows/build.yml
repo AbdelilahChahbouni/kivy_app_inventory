@@ -1,90 +1,68 @@
-name: Build Kivy APK
+name: Build Kivy Android App
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
 
 jobs:
   build-android:
     runs-on: ubuntu-latest
-
     env:
+      ANDROID_HOME: ${{ github.workspace }}/android-sdk
       ANDROIDSDK: ${{ github.workspace }}/android-sdk
       ANDROIDNDK: ${{ github.workspace }}/android-ndk-r25b
-      ANT_HOME: ${{ github.workspace }}/apache-ant-1.9.4
-      PATH: ${{ github.workspace }}/.buildozer/venv/bin:${{ github.workspace }}/android-sdk/cmdline-tools/latest/bin:$PATH
+      PATH: ${{ github.workspace }}/android-sdk/cmdline-tools/latest/bin:${{ github.workspace }}/android-sdk/platform-tools:${{ github.workspace }}/android-ndk-r25b:$PATH
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y python3-dev python3-pip git unzip zip openjdk-17-jdk tar wget curl
-
+      uses: actions/checkout@v4
 
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10'
+        python-version: 3.10
 
-    - name: Install dependencies
+    - name: Install system dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install --upgrade buildozer cython
+        sudo apt-get update
+        sudo apt-get install -y python3-dev python3-pip git unzip zip openjdk-17-jdk tar wget curl build-essential
 
-    - name: Cache Buildozer, SDK, NDK
+    - name: Install Buildozer & dependencies
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+        pip install cython==0.29.36
+        pip install buildozer==1.0.3
+
+    - name: Cache Buildozer & Python packages
       uses: actions/cache@v3
       with:
         path: |
           ~/.buildozer
-          android-sdk
-          android-ndk-r25b
-        key: ${{ runner.os }}-buildozer-${{ hashFiles('**/buildozer.spec') }}
+          ~/.cache/pip
+        key: ${{ runner.os }}-buildozer-${{ hashFiles('**/requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-buildozer-
 
-    - name: Install Android SDK & Build-tools
+    - name: Install Android SDK Command-line Tools
       run: |
-        mkdir -p $ANDROIDSDK/cmdline-tools
-        cd $ANDROIDSDK/cmdline-tools
-        wget https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip -O cmdline-tools.zip
-        unzip cmdline-tools.zip
-        mv cmdline-tools latest
-
-        # Accept licenses
-        yes | $ANDROIDSDK/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROIDSDK --licenses
-
-        # Install platform-tools, platforms, and build-tools
-        $ANDROIDSDK/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROIDSDK \
-          "platform-tools" \
-          "platforms;android-33" \
-          "build-tools;33.0.2"
-
-        # Verify aidl exists
-        if [ ! -f "$ANDROIDSDK/build-tools/33.0.2/aidl" ]; then
-          echo "Aidl not found, exiting..."
-          exit 1
+        mkdir -p $ANDROID_HOME/cmdline-tools
+        cd $ANDROID_HOME/cmdline-tools
+        if [ ! -d latest ]; then
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+          unzip cmdline-tools.zip
+          mv cmdline-tools latest
         fi
-
-    - name: Install Apache Ant
-      run: |
-        mkdir -p $ANT_HOME
-        cd $ANT_HOME
-        wget https://downloads.apache.org/ant/binaries/apache-ant-1.9.4-bin.zip
-        unzip apache-ant-1.9.4-bin.zip
-        mv apache-ant-1.9.4/* .
-        rm -rf apache-ant-1.9.4 apache-ant-1.9.4-bin.zip
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME --licenses
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
 
     - name: Build APK
       run: |
         buildozer android debug
-        ls -lh bin/
-    
+
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: maintenanceapp-apk
+        name: maintenanceapp-debug.apk
         path: bin/*.apk
