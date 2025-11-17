@@ -19,6 +19,11 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-dev python3-pip git unzip zip openjdk-17-jdk tar wget curl
+
 
     - name: Set up Python
       uses: actions/setup-python@v4
