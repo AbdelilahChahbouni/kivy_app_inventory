@@ -1,60 +1,65 @@
-name: Build APK
+name: Build Android APK
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
+    branches: [main]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     env:
-      ANDROIDSDK: /home/runner/android-sdk
-      ANDROIDNDK: /home/runner/android-ndk
+      ANDROIDSDK: ${{ github.workspace }}/android/android-sdk
+      ANDROIDNDK: ${{ github.workspace }}/android/android-ndk
       ANDROIDAPI: 33
       ANDROIDMINAPI: 24
+      PATH: ${{ github.workspace }}/.venv/bin:${{ github.workspace }}/android/android-sdk/cmdline-tools/latest/bin:$PATH
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: 3.10
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install buildozer cython==0.29.36 kivy==2.3.0 requests opencv-python
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install cython==0.29.36 buildozer==1.5.3 kivy==2.3.0
 
-      - name: Cache Buildozer
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.buildozer
-            ~/.pypoetry
-            ~/.cache/pip
-          key: buildozer-cache-${{ github.sha }}
-
-      - name: Install Android SDK/NDK
+      - name: Download Android SDK Command-line Tools
         run: |
-          mkdir -p $ANDROIDSDK/cmdline-tools
-          cd $ANDROIDSDK/cmdline-tools
+          mkdir -p android/android-sdk/cmdline-tools
           wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-          unzip cmdline-tools.zip
-          mv cmdline-tools latest
-          yes | $ANDROIDSDK/cmdline-tools/latest/bin/sdkmanager --licenses
-          $ANDROIDSDK/cmdline-tools/latest/bin/sdkmanager "platforms;android-33" "build-tools;34.0.0" "platform-tools"
+          unzip cmdline-tools.zip -d android/android-sdk/cmdline-tools
+          mv android/android-sdk/cmdline-tools/cmdline-tools android/android-sdk/cmdline-tools/latest
+          yes | android/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+          android/android-sdk/cmdline-tools/latest/bin/sdkmanager "platforms;android-33" "build-tools;34.0.0" "platform-tools"
+
+      - name: Download Android NDK
+        run: |
+          wget https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
+          unzip android-ndk-r25b-linux.zip -d android/
+          mv android/android-ndk-r25b android/android-ndk
+
+      - name: Download Apache Ant
+        run: |
+          wget https://archive.apache.org/dist/ant/binaries/apache-ant-1.10.12-bin.zip
+          unzip apache-ant-1.10.12-bin.zip -d android/
+          mv android/apache-ant-1.10.12 android/apache-ant
 
       - name: Build APK
         run: |
+          source .venv/bin/activate
           buildozer android debug
-
+          
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: myapp-apk
+          name: maintenanceapp-apk
           path: bin/*.apk
