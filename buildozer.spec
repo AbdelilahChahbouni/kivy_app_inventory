@@ -61,7 +61,7 @@ android.debug_artifact = apk
 android.accept_sdk_license = True
 
 # --- Removed skip_update ---
-# android.skip_update = True
+# android.skip_update =
 
 # Logging
 log_level = 2
