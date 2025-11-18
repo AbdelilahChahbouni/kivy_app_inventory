@@ -27,27 +27,22 @@ jobs:
           python3-pip python3-setuptools python3-wheel \
           libffi-dev libssl-dev build-essential ccache
 
-    - name: Install Buildozer
+    - name: Install Buildozer & python-for-android
       run: |
         pip install --upgrade pip
-        pip install buildozer cython
+        pip install buildozer==1.5.0 python-for-android==2025.1.0 cython
 
-    - name: Cache Buildozer downloads
-      uses: actions/cache@v3
-      with:
-        path: ~/.buildozer
-        key: ${{ runner.os }}-buildozer
-
-    - name: Clean Buildozer SDK/NDK cache
-      run: rm -rf ~/.buildozer/android/platform/android-sdk ~/.buildozer/android/platform/android-ndk*
-
-    - name: Initialize buildozer (if needed)
+    - name: Clear runner Android env
       run: |
-        if [ ! -f buildozer.spec ]; then
-          buildozer init
-        fi
+        unset ANDROID_HOME
+        unset ANDROID_SDK_ROOT
+        unset ANDROID_NDK_HOME
+        unset ANDROID_NDK
 
-    - name: Clean and Build APK
+    - name: Clean Buildozer toolchain
+      run: rm -rf ~/.buildozer/android/platform ~/.buildozer/android/packages ~/.buildozer/android/build
+
+    - name: Build APK
       run: |
         buildozer android clean
         buildozer android debug
