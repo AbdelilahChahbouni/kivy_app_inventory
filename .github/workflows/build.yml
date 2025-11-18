@@ -11,19 +11,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code (no submodules)
+    - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        submodules: false
-        fetch-depth: 0
-
-    - name: Ensure .buildozer is ignored and no stray .gitmodules
-      run: |
-        echo ".buildozer/" >> .gitignore
-        if [ -f .gitmodules ]; then
-          echo "Found .gitmodules, showing content:"
-          cat .gitmodules || true
-        fi
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -35,47 +24,38 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y \
           git zip unzip openjdk-17-jdk \
-          python3-pip python3-setuptools python3-wheel \
-          libffi-dev libssl-dev build-essential ccache
+          libffi-dev libssl-dev build-essential ccache \
+          libncurses5 libtinfo5
 
-    - name: Install Buildozer & python-for-android
+    - name: Install Buildozer
       run: |
         pip install --upgrade pip
-        pip install buildozer==1.5.0 python-for-android==2024.1.21 cython
+        pip install buildozer python-for-android cython
 
-    - name: Clean Buildozer toolchain (SDK/NDK/builds)
-      run: rm -rf ~/.buildozer/android/platform ~/.buildozer/android/packages ~/.buildozer/android/build
+    - name: Optional: Enable Buildozer Debug Logs
+      run: echo "log_level = 2" >> buildozer.spec
 
-    - name: Build with verbose logs
-      env:
-        P4A_log_level: 2
+    - name: Build APK (verbose)
       run: |
-        # Optional: ensure your buildozer.spec is present in the repo
         test -f buildozer.spec || buildozer init
-        # Clean then build
-        buildozer android clean
-        buildozer android debug
+        buildozer android debug --verbose
 
-    - name: Upload APK
+    - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: kivy-apk
         path: bin/*.apk
 
-    - name: Upload Buildozer logs for diagnosis
+    - name: Upload Buildozer Logs
       if: always()
       run: |
-        LOG_DIR="$HOME/.buildozer/android/platform"
         mkdir -p logs
-        # Common buildozer/p4a logs
-        cp -v "$LOG_DIR"/build.log logs/ 2>/dev/null || true
-        cp -v "$LOG_DIR"/debug.log logs/ 2>/dev/null || true
-        # Fallback: grab any logs under .buildozer
-        tar -czf logs/buildozer-logs.tgz -C "$HOME/.buildozer" . || true
+        cp -r ~/.buildozer logs/ || true
       shell: bash
+
     - name: Upload logs artifact
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: buildozer-logs
-        path: logs/*
+        path: logs/
