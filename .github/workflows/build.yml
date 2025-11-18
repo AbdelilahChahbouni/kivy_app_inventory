@@ -11,37 +11,50 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code (with submodules)
+      # --- Step 1: Checkout repo without touching .buildozer ---
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: recursive  # Only fetch submodules from your repo
           fetch-depth: 0
 
+      # --- Step 2: Ensure .buildozer is ignored ---
+      - name: Ensure .buildozer is ignored
+        run: |
+          echo ".buildozer/" >> .gitignore
+          git rm -r --cached .buildozer || true
+
+      # --- Step 3: Set up Python ---
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
+      # --- Step 4: Install system dependencies ---
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             git zip unzip openjdk-17-jdk \
             libffi-dev libssl-dev build-essential ccache \
-            libncurses6 libtinfo6 gcc-multilib g++-multilib zlib1g:i386 libc6:i386 libstdc++6:i386
+            libncurses6 libtinfo6 gcc-multilib g++-multilib \
+            zlib1g:i386 libc6:i386 libstdc++6:i386
 
           # Compatibility symlinks for Ubuntu 24.04
           sudo ln -sf /usr/lib/x86_64-linux-gnu/libncurses.so.6 /usr/lib/x86_64-linux-gnu/libncurses.so.5
           sudo ln -sf /usr/lib/x86_64-linux-gnu/libtinfo.so.6   /usr/lib/x86_64-linux-gnu/libtinfo.so.5
 
+      # --- Step 5: Install Buildozer + python-for-android ---
       - name: Install Buildozer + python-for-android
         run: |
           pip install --upgrade pip
           pip install buildozer python-for-android cython
 
+      # --- Step 6: Clean Buildozer toolchain ---
       - name: Clean Buildozer toolchain
         run: rm -rf ~/.buildozer/android/platform ~/.buildozer/android/packages ~/.buildozer/android/build
 
+      # --- Step 7: Ensure buildozer.spec exists ---
       - name: Ensure buildozer.spec exists
         run: |
           if [ ! -f buildozer.spec ]; then
@@ -50,10 +63,11 @@ jobs:
           # Safely set log_level = 2
           sed -i 's/^log_level.*/log_level = 2/' buildozer.spec
 
-      - name: Build APK (verbose)
-        run: |
-          buildozer android debug --verbose
+      # --- Step 8: Build APK (verbose) ---
+      - name: Build APK
+        run: buildozer android debug --verbose
 
+      # --- Step 9: Show last 50 lines of Buildozer logs ---
       - name: Show Buildozer logs
         if: always()
         run: |
@@ -62,12 +76,14 @@ jobs:
           echo "=== Last 50 lines of debug.log ==="
           tail -n 50 ~/.buildozer/android/debug.log || echo "no debug.log"
 
+      # --- Step 10: Upload APK ---
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: kivy-apk
           path: bin/*.apk
 
+      # --- Step 11: Upload Buildozer logs ---
       - name: Upload Buildozer Logs
         if: always()
         run: |
