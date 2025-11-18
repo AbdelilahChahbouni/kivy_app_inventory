@@ -27,7 +27,7 @@ jobs:
             libffi-dev libssl-dev build-essential ccache \
             libncurses6 libtinfo6
 
-          # Compatibility symlinks (Ubuntu 24.04 → 20.04 compatibility)
+          # Compatibility symlinks for Ubuntu 24.04
           sudo ln -sf /usr/lib/x86_64-linux-gnu/libncurses.so.6 /usr/lib/x86_64-linux-gnu/libncurses.so.5
           sudo ln -sf /usr/lib/x86_64-linux-gnu/libtinfo.so.6   /usr/lib/x86_64-linux-gnu/libtinfo.so.5
 
@@ -41,13 +41,21 @@ jobs:
           if [ ! -f buildozer.spec ]; then
             buildozer init
           fi
-
-          # Safely force debug log level (edit, not duplicate)
+          # Safely set log_level = 2
           sed -i 's/^log_level.*/log_level = 2/' buildozer.spec
 
       - name: Build APK (verbose)
         run: |
           buildozer android debug --verbose
+
+      # --- New step: Print last lines of Buildozer logs for debugging ---
+      - name: Show Buildozer logs
+        if: always()
+        run: |
+          echo "=== Last 50 lines of build.log ==="
+          tail -n 50 ~/.buildozer/android/platform/build.log || echo "no build.log"
+          echo "=== Last 50 lines of debug.log ==="
+          tail -n 50 ~/.buildozer/android/debug.log || echo "no debug.log"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
