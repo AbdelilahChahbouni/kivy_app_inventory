@@ -11,51 +11,53 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.10"
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
 
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          git zip unzip openjdk-17-jdk \
-          libffi-dev libssl-dev build-essential ccache \
-          libncurses5 libtinfo5
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git zip unzip openjdk-17-jdk \
+            libffi-dev libssl-dev build-essential ccache \
+            libncurses5 libtinfo5
 
-    - name: Install Buildozer
-      run: |
-        pip install --upgrade pip
-        pip install buildozer python-for-android cython
+      - name: Install Buildozer & p4a
+        run: |
+          pip install --upgrade pip
+          pip install buildozer python-for-android cython
 
-    - name: Optional: Enable Buildozer Debug Logs
-      run: echo "log_level = 2" >> buildozer.spec
+      - name: Ensure buildozer.spec exists
+        run: |
+          if [ ! -f buildozer.spec ]; then
+            buildozer init
+          fi
+          echo "log_level = 2" >> buildozer.spec
 
-    - name: Build APK (verbose)
-      run: |
-        test -f buildozer.spec || buildozer init
-        buildozer android debug --verbose
+      - name: Build APK (verbose)
+        run: |
+          buildozer android debug --verbose
 
-    - name: Upload APK Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: kivy-apk
-        path: bin/*.apk
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kivy-apk
+          path: bin/*.apk
 
-    - name: Upload Buildozer Logs
-      if: always()
-      run: |
-        mkdir -p logs
-        cp -r ~/.buildozer logs/ || true
-      shell: bash
+      - name: Upload Buildozer Logs
+        if: always()
+        run: |
+          mkdir -p logs
+          cp -r ~/.buildozer logs/ || true
 
-    - name: Upload logs artifact
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: buildozer-logs
-        path: logs/
+      - name: Upload logs artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildozer-logs
+          path: logs/
