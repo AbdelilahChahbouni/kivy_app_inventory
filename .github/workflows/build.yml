@@ -30,7 +30,7 @@ jobs:
     - name: Install Buildozer & python-for-android
       run: |
         pip install --upgrade pip
-        pip install buildozer==1.5.0 python-for-android==2025.1.0 cython
+        pip install buildozer==1.5.0 python-for-android==2024.1.21 cython
 
     - name: Clear runner Android env
       run: |
