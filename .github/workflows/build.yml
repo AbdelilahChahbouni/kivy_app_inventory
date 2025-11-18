@@ -27,7 +27,11 @@ jobs:
             libffi-dev libssl-dev build-essential ccache \
             libncurses6 libtinfo6
 
-      - name: Install Buildozer & p4a
+          # Compatibility symlinks (Ubuntu 24.04 → 20.04 compatibility)
+          sudo ln -sf /usr/lib/x86_64-linux-gnu/libncurses.so.6 /usr/lib/x86_64-linux-gnu/libncurses.so.5
+          sudo ln -sf /usr/lib/x86_64-linux-gnu/libtinfo.so.6   /usr/lib/x86_64-linux-gnu/libtinfo.so.5
+
+      - name: Install Buildozer + python-for-android
         run: |
           pip install --upgrade pip
           pip install buildozer python-for-android cython
@@ -37,7 +41,9 @@ jobs:
           if [ ! -f buildozer.spec ]; then
             buildozer init
           fi
-          echo "log_level = 2" >> buildozer.spec
+
+          # Safely force debug log level (edit, not duplicate)
+          sed -i 's/^log_level.*/log_level = 2/' buildozer.spec
 
       - name: Build APK (verbose)
         run: |
